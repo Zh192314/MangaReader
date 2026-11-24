@@ -314,43 +314,43 @@ final class VeneraRuntime {
 
     func search(_ keyword: String, page: Int) throws -> [Manga] {
         try run {
-            if meta.hasExplore && !meta.hasSearch && meta.exploreTitles.count > 0 {
-                let raw = try call("__veneraExplore", [0, page])
-                return mapComics(raw)
+            if self.meta.hasExplore && !self.meta.hasSearch && self.meta.exploreTitles.count > 0 {
+                let raw = try self.call("__veneraExplore", [0, page])
+                return self.mapComics(raw)
             }
-            let raw = try call("__veneraSearch", [keyword, page])
-            return mapComics(raw)
+            let raw = try self.call("__veneraSearch", [keyword, page])
+            return self.mapComics(raw)
         }
     }
 
     func detail(_ id: String) throws -> (Manga, [Chapter]) {
         try run {
-            if let cached = detailCache[id] { return cached }
-            let raw = try call("__veneraLoadDetail", [id])
+            if let cached = self.detailCache[id] { return cached }
+            let raw = try self.call("__veneraLoadDetail", [id])
             guard let d = raw as? [String: Any] else { throw SourceError.parse("详情返回格式错误") }
 
-            let title = str(d["title"]).isEmpty ? str(d["subtitle"]) : str(d["title"])
+            let title = self.str(d["title"]).isEmpty ? self.str(d["subtitle"]) : self.str(d["title"])
             guard !title.isEmpty else { throw SourceError.parse("没有解析到标题") }
 
-            var m = Manga(key: Manga.makeKey(source: source.id, url: id),
-                          sourceID: source.id,
+            var m = Manga(key: Manga.makeKey(source: self.source.id, url: id),
+                          sourceID: self.source.id,
                           url: id,
                           title: title,
-                          cover: absURL(str(d["cover"])))
-            m.author = str(d["uploader"])
-            m.desc = str(d["description"])
+                          cover: self.absURL(self.str(d["cover"])))
+            m.author = self.str(d["uploader"])
+            m.desc = self.str(d["description"])
             m.status = ""
             let tags = (d["tags"] as? [Any])?.compactMap { $0 as? [Any] }.compactMap { $0.last as? String } ?? []
             m.genre = tags.joined(separator: " ")
 
-            let chapters = parseChapters(d["chapters"]).map { ch -> Chapter in
+            let chapters = self.parseChapters(d["chapters"]).map { ch -> Chapter in
                 var c = ch
                 // Venera 取图要同时给 comicId 与 epId，这里把两者编码进章节的 url
                 c.url = "\(id)||\(ch.url)"
                 return c
             }
-            detailCache[id] = (m, chapters)
-            if detailCache.count > 40 { detailCache.removeAll() }
+            self.detailCache[id] = (m, chapters)
+            if self.detailCache.count > 40 { self.detailCache.removeAll() }
             return (m, chapters)
         }
     }
@@ -361,13 +361,13 @@ final class VeneraRuntime {
 
     func images(comicId: String, epId: String) throws -> [(url: String, referer: String?)] {
         try run {
-            let raw = try call("__veneraLoadImages", [comicId, epId])
+            let raw = try self.call("__veneraLoadImages", [comicId, epId])
             guard let arr = raw as? [Any] else { throw SourceError.parse("图片列表格式错误") }
-            let ref = source.baseURL.isEmpty ? nil : source.baseURL
+            let ref = self.source.baseURL.isEmpty ? nil : self.source.baseURL
             var out: [(url: String, referer: String?)] = []
             for item in arr {
                 guard let d = item as? [String: Any] else { continue }
-                let u = absURL(str(d["url"]))
+                let u = self.absURL(self.str(d["url"]))
                 guard !u.isEmpty else { continue }
                 var r = ref
                 if let h = d["headers"] as? [String: Any] {
@@ -384,18 +384,18 @@ final class VeneraRuntime {
 
     func category(_ tag: String, page: Int) throws -> [Manga] {
         try run {
-            let raw = try call("__veneraSearch", [tag, page])
-            return mapComics(raw)
+            let raw = try self.call("__veneraSearch", [tag, page])
+            return self.mapComics(raw)
         }
     }
 
     func ranking(_ key: String, page: Int) throws -> [Manga] {
         try run {
-            let raw = try call("__veneraRanking", [key, page])
-            let list = mapComics(raw)
+            let raw = try self.call("__veneraRanking", [key, page])
+            let list = self.mapComics(raw)
             if !list.isEmpty { return list }
-            let fallback = try call("__veneraSearch", [key, page])
-            return mapComics(fallback)
+            let fallback = try self.call("__veneraSearch", [key, page])
+            return self.mapComics(fallback)
         }
     }
 

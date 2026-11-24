@@ -27,7 +27,7 @@ final class JSEngine {
     // MARK: - 桥
 
     private func installBridge() {
-        let ctx = context!
+        let ctx = context
 
         ctx.exceptionHandler = { [weak self] _, exc in
             self?.lastError = exc?.toString() ?? "unknown js error"
@@ -112,33 +112,54 @@ final class JSEngine {
         return v
     }
 
-    /// 调用脚本里的函数并取回可序列化结果
+    /// 调用脚本里的函数并取回可序列化结果。
+    /// 用 JSON 在 Swift / JS 之间交换参数与返回值，避免 JSValue 桥接的类型歧义。
     func callJSON(_ fn: String, _ args: [Any]) throws -> Any? {
-        var result: Any?
-        var err: String?
-        let sem = DispatchSemaphore(value: 0)
-        queue.async {
-            defer { sem.signal() }
-            guard let f = self.context.objectForKeyedSubscript(fn), !f.isUndefined else {
-                err = "源脚本缺少函数 \(fn)()"
-                return
-            }
-            let vals: [JSValue] = args.map { JSValue(jsonObject: $0, in: self.context) ?? JSValue(undefinedIn: self.context) }
-            let out = f.call(withArguments: vals)
-            if let e = self.context.exception {
-                err = e.toString() ?? "js exception"
-                self.context.exception = nil
-                return
-            }
-            guard let out = out, !out.isUndefined, !out.isNull else {
-                err = "\(fn)() 返回空"
-                return
-            }
-            result = out.toObject()
+        var argsJSON = "[]"
+        if let d = try? JSONSerialization.data(withJSONObject: args, options: [.fragmentsAllowed]),
+           let s = String(data: d, encoding: .utf8) {
+            argsJSON = s
         }
-        _ = sem.wait(timeout: .now() + 90)
-        if let err = err { throw SourceError.script(err) }
-        return normalize(result)
+
+        let script = """
+        (function(){
+          try {
+            var f = globalThis[__callFn];
+            if (typeof f !== 'function') return { __err: '源脚本缺少函数 ' + __callFn + '()' };
+            var out = f.apply(null, JSON.parse(__callArgs));
+            if (out === undefined || out === null) return { __err: __callFn + '() 返回空' };
+            return { __out: JSON.stringify(out) };
+          } catch(e) {
+            return { __err: String((e && e.message) || e) };
+          }
+        })();
+        """
+
+        let result: Any? = try queue.sync { () -> Any? in
+            self.context.setObject(fn as NSString, forKeyedSubscript: "__callFn" as NSString)
+            self.context.setObject(argsJSON as NSString, forKeyedSubscript: "__callArgs" as NSString)
+            let ret = self.context.evaluateScript(script)
+            if let e = self.context.exception {
+                let msg = e.toString() ?? "js exception"
+                self.context.exception = nil
+                throw SourceError.script(msg)
+            }
+            guard let ret = ret, !ret.isUndefined, !ret.isNull else {
+                throw SourceError.script("调用 \(fn)() 失败")
+            }
+            if let errVal = ret.objectForKeyedSubscript("__err"),
+               !errVal.isUndefined, !errVal.isNull,
+               let msg = errVal.toString(), !msg.isEmpty {
+                throw SourceError.script(msg)
+            }
+            guard let outStr = ret.objectForKeyedSubscript("__out")?.toString(),
+                  let d = outStr.data(using: .utf8),
+                  let obj = try? JSONSerialization.jsonObject(with: d, options: .fragmentsAllowed) else {
+                throw SourceError.parse("\(fn)() 返回值无法解析")
+            }
+            return self.normalize(obj)
+        }
+        return result
     }
 
     /// JSValue.toObject 可能给出 NSDictionary / NSArray / __NSCF 类型，统一成纯 Swift

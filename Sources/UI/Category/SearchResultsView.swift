@@ -168,7 +168,7 @@ struct SearchResultsView: View {
             .padding(.top, 12)
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: GridLayout.bookCellWidth - 12),
-                                         spacing: GridLayout.gridSpacing)],
+                                         spacing: Theme.gridSpacing)],
                       alignment: .leading,
                       spacing: 14) {
                 ForEach(g.items) { m in

@@ -34,7 +34,7 @@ enum SourceLang: String, Codable, CaseIterable {
 }
 
 /// 声明式规则：选择器 / 正则 / JSONPath 三种风格混用，编译期转成 JS
-struct SourceRules: Codable, Equatable {
+struct SourceRules: Codable, Equatable, Hashable {
     // 搜索
     var searchURL: String = ""              // 支持 {q} {page}
     var searchMethod: String = "GET"

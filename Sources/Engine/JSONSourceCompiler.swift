@@ -122,7 +122,10 @@ enum JSONSourceCompiler {
           // 过滤明显的占位图与 logo
           out = out.filter(function(x){
             var u = x.url.toLowerCase();
-            return u.length > 12 && !/loading|placeholder|\/logo|spacer|1x1/.test(u);
+            if (u.length <= 12) return false;
+            return u.indexOf('loading') < 0 && u.indexOf('placeholder') < 0
+                && u.indexOf('logo') < 0 && u.indexOf('spacer') < 0
+                && u.indexOf('1x1') < 0;
           });
           return out;
         }
