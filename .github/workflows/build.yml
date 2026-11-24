@@ -25,7 +25,7 @@ jobs:
   # ─────────────────────────────────────────────
   unsigned:
     name: Unsigned IPA
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
 
@@ -137,7 +137,7 @@ jobs:
   signed:
     name: Signed IPA (optional)
     if: vars.ENABLE_SIGNING == 'true'
-    runs-on: macos-14
+    runs-on: macos-15
     env:
       CERT_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
       CERT_PASSWORD: ${{ secrets.P12_PASSWORD }}
