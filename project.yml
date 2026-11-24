@@ -1,0 +1,55 @@
+name: MangaReader
+options:
+  bundleIdPrefix: com.yg.manga
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+settings:
+  base:
+    MARKETING_VERSION: "1.4.0"
+    CURRENT_PROJECT_VERSION: "140"
+    SWIFT_VERSION: "5.0"
+    ENABLE_BITCODE: NO
+    IPHONEOS_DEPLOYMENT_TARGET: "16.0"
+targets:
+  MangaReader:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: Sources
+      - path: Resources
+        excludes:
+          - "Info.plist"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.yg.manga.reader
+        PRODUCT_NAME: MangaReader
+        INFOPLIST_FILE: Resources/Info.plist
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: ""
+        CODE_SIGNING_REQUIRED: NO
+        CODE_SIGNING_ALLOWED: NO
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_EMIT_LOC_STRINGS: NO
+        OTHER_LDFLAGS:
+          - "-lsqlite3"
+    dependencies:
+      - sdk: libsqlite3.tbd
+      - sdk: JavaScriptCore.framework
+      - sdk: WebKit.framework
+
+# 显式声明 scheme：CI（无 Xcode GUI）不会自动创建 scheme，
+# 没有这段的话 xcodebuild -scheme MangaReader 会直接报 “does not contain a scheme”
+schemes:
+  MangaReader:
+    build:
+      targets:
+        MangaReader: all
+    run:
+      config: Debug
+    archive:
+      config: Release
+
